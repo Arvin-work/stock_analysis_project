@@ -3,5 +3,12 @@
 
 __version__ = 0.01
 
+from .fetcher import AkshareRightTimeDate
+from .storage import (
+    StorageData,
+    MethodStorageData,
+    DataMismatchError
+)
+
 __all__ = []
 

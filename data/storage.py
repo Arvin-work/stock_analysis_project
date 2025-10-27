@@ -32,7 +32,7 @@ class StorageData:
                  data,
                  current_time,
                  market, # 需要说明是哪个市场上的股票
-                 orgin, # 需要说明是从哪个数据源来的
+                 origin, # 需要说明是从哪个数据源来的
                  time_type, # 确认是实时数据还是历史数据 
                  # 历史数据专用参数
                  start_date: Optional['str'] = None,
@@ -42,7 +42,7 @@ class StorageData:
         
         print("储存数据开始初始化")
         self.check_validation_chain(time_type=time_type, start_date=start_date, end_date= end_date, stock_code= stock_code)
-        self._set_attributes(data=data, current_time=current_time, market=market, origin=orgin, time_type=time_type,
+        self._set_attributes(data=data, current_time=current_time, market=market, origin=origin, time_type=time_type,
                              start_date=start_date, end_date=end_date, stock_code=stock_code)
 
     def check_validation_chain(self, time_type, start_date, end_date, stock_code):
@@ -176,7 +176,7 @@ def validate_data_type_compatibility(time_type,
 # 该函数会根据输入的time_type的不同，来确认是对于哪种数据的查询
 def verify_data_existence(time_type,
                           market,
-                          orgin,
+                          origin,
                           start_date: Optional['str'] = None,
                           end_date: Optional['str'] = None,
                           stock_code: Optional['str'] = None):
