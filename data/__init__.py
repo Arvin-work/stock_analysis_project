@@ -7,7 +7,8 @@ from .fetcher import AkshareRightTimeDate
 from .storage import (
     StorageData,
     MethodStorageData,
-    DataMismatchError
+    DataMismatchError,
+    verify_data_existence
 )
 
 __all__ = []

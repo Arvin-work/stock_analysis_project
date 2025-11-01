@@ -98,7 +98,7 @@ def MethodStorageData(storage_data:StorageData):
 
     if storage_data.time_type == "hist":
         target_folder = f"data/stock_data/hist/{storage_data.stock_code}"
-        file_name = f"{storage_data.current_time}_{storage_data.start_date}_{storage_data.end_date}_{storage_data.origin}.csv"
+        file_name = f"{storage_data.start_date}_{storage_data.end_date}_{storage_data.origin}.csv"
 
         if not os.path.exists(target_folder):
             os.makedirs(target_folder)
@@ -179,16 +179,26 @@ def verify_data_existence(time_type,
                           origin,
                           start_date: Optional['str'] = None,
                           end_date: Optional['str'] = None,
-                          stock_code: Optional['str'] = None):
+                          stock_code: Optional['str'] = None,
+                          check_time_right: Optional['str'] = None):
     # 先检查数据种类是否产生冲突
     sign = validate_data_type_compatibility(time_type=time_type, start_date=start_date, end_date=end_date, stock_code=stock_code)
     if sign == True:
         print("数据格式验证完成，确认有效，开始查询")
         if time_type == "hist":
-            target_fold = ""
+            target_file = f"{start_date}_{end_date}_{origin}.csv"
+            target_data_file = f"stock_data/hist/{stock_code}/{target_file}"
+            if os.path.exists(target_data_file):
+                return True
+            else:
+                return False
         elif time_type == "right_time":
-            target_fold = ""
-
+            target_file = f"{check_time_right}_{market}_{origin}.csv"
+            target_data_file = f"stock_data/right_time/{target_file}"
+            if os.path.exists(target_data_file):
+                return True
+            else:
+                return False
     else:
         print("数据出现错误，见上文相关报错")
 

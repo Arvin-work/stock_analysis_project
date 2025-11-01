@@ -4,7 +4,7 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from typing import Optional
-import data
+from ..data import *
 
 # 设置matplotlib，设置中文
 plt.rcParams['font.sans-serif'] = ['Heiti TC']

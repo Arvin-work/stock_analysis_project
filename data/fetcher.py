@@ -3,10 +3,12 @@
 # 当前主要关注市场：A股，美股
 import akshare as ak
 from datetime import datetime
-from .storage import StorageData, MethodStorageData
+from .storage import (StorageData, 
+                    MethodStorageData,
+                    verify_data_existence)
 import os
 
-current_time = datetime.now()
+
 
 # 该函数是用于获取原始数据
 def AkshareRightTimeDate():
@@ -65,4 +67,8 @@ def AkshareHistData(stock_code,
                     end_time,
                     market):
     print("开始核查历史数据是否存在")
-    
+    if verify_data_existence(time_type="hist", market=market, start_date=start_time, end_date=end_time, stock_code=stock_code):
+        print("数据存在，当前不用申请")
+
+    else:
+        print("开始申请数据")
