@@ -67,8 +67,30 @@ def AkshareHistData(stock_code,
                     end_time,
                     market):
     print("开始核查历史数据是否存在")
-    if verify_data_existence(time_type="hist", market=market, start_date=start_time, end_date=end_time, stock_code=stock_code):
+    if verify_data_existence(time_type="hist", market=market, start_date=start_time, end_date=end_time, stock_code=stock_code,origin="akshare"):
         print("数据存在，当前不用申请")
 
     else:
         print("开始申请数据")
+        stock_data = None
+        if market == 'A':
+            stock_data = ak.stock_zh_a_hist(
+                symbol=stock_code,
+                period="daily",
+                start_date=start_time,
+                end_date=end_time,
+                adjust="hfq"
+            )
+        else:
+            print("当前市场使用akshare无法获取")
+
+
+        if stock_data is None:
+            print("数据未获取成功")
+        else:
+            output_file = f"data/stock_data/hist/{stock_code}/{start_time}_{end_time}_akshare.csv"
+            stock_data.to_csv(output_file, index=False, encoding='utf-8-sig')
+            return stock_data
+
+
+# 需要维持一个表单，维持整个相关股票代码可以被查询的能力

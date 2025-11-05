@@ -18,7 +18,7 @@ class DataEmptyError(Exception):
 
 # 对于单只股票相关信息进行统计，进行初步的简单的了解
 # 需要保证所有输入的数据都是以pandas的DataFrame的形式输入
-def Eda_visiualization(data: Optional[pd.DataFrame], stock_code: str):
+def Eda_visiualization_hist(data: Optional[pd.DataFrame], stock_code: str):
     # 确保数据不出现数据集为空的情况
     if data is None or data.empty:
         raise DataEmptyError()
@@ -118,7 +118,9 @@ def Eda_visiualization(data: Optional[pd.DataFrame], stock_code: str):
         plt.text(0.5, 0.5, 'Insufficient Data for Correlation', horizontalalignment='center', verticalalignment='center', transform=plt.gca().transAxes)
 
     plt.tight_layout(rect=[0, 0, 1, 0.96]) # 调整子图间距，为总标题留出空间
-    plt.show() # 显示整个图表
+
+    save_path = f"presentation/Eda_data/{stock_code}.png"
+    plt.savefig(save_path)
 
 # --- 示例用法 ---
 # 1. 读取数据 (请将 '2025-10-25_18_20240101_20251022_akshare.csv' 替换为你的实际文件路径)

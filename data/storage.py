@@ -202,4 +202,18 @@ def verify_data_existence(time_type,
     else:
         print("数据出现错误，见上文相关报错")
 
+# 当前已经有的历史股票列表
+def hist_data_stock_list():
+    target_folker = "stock_data/hist"
+    return os.listdir(target_folker)
 
+# 获取历史股票数据
+def hist_data_get(
+        stock_code: Optional['str'],
+        start_date: Optional['str'],
+        end_date: Optional['str']
+):
+    print("正在查询相关")
+    target_path = f"stock_data/hist/{stock_code}"
+    if os.path.exists(target_path):
+        print("文件存在，查找是否存在对应数据")
