@@ -127,3 +127,8 @@ def Eda_visiualization_hist(data: Optional[pd.DataFrame], stock_code: str):
 #df = pd.read_csv('data/stock_data/hist/600519/2025-10-25_18_20240101_20251022_akshare.csv')
 # 2. 调用函数进行可视化
 #Eda_visiualization(df, '600519')
+
+# 对于相关可视化数据进行存储
+def save_visualization(fig: matplotlib.figure.Figure, filename: str):
+    save_path = f'presentation/visual_picture/{filename}'
+    fig.savefig(save_path)
