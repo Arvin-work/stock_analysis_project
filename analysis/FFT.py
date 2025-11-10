@@ -54,20 +54,34 @@ plt.savefig('presentation/visual_picture/fft_spectrum_detrended.png')
 # 1. 创建时间索引
 # 2. 创建训练集和测试集，同时这里使用了随机数种子来保证整个数据集的可重复性
 # 3. 定义函数，用以进行训练集的拟合，后将输入的函数与测试集进行拟合比对
+train_size = int(0.8 * len(closing_prices))
 time_indices = np.arange(len(closing_prices))
-X_train, X_test, y_train, y_test = train_test_split(time_indices, closing_prices, test_size=0.2, random_state=42)
-print(f"训练集大小: {len(X_train)}, 测试集大小: {len(X_test)}")
+
+X_train = time_indices[:train_size]
+X_test = time_indices[train_size:]
+y_train = closing_prices[:train_size]
+y_test = closing_prices[train_size:]
 
 def fft_model(t, *coefficients):
-    result = coefficients[0]
-    n_components = (len(coefficients) - 1) // 3
+    n_components = len(coefficients) // 2
+    result = 0
+    
     for i in range(n_components):
-        amplitude = coefficients[1 + i * 3]
-        frequency = coefficients[2 + i * 3]
-        phase = coefficients[3 + i * 3]
-        result += amplitude * np.sin(2 * np.pi * frequency * t + phase)
+        a_n = coefficients[2*i]      # 余弦系数
+        b_n = coefficients[2*i + 1]  # 正弦系数
+        freq = (i + 1) / len(t)      # 基础频率的倍数
+        
+        result += a_n * np.cos(2 * np.pi * freq * t) + b_n * np.sin(2 * np.pi * freq * t)
     return result
 
+def improved_fft_model(t, *coefficients):
+    for i in range(n_components):
+        a_n = coefficients[2*i]      # 余弦系数
+        b_n = coefficients[2*i + 1]  # 正弦系数
+        freq = (i + 1) / len(t)      # 基础频率的倍数
+        
+        result += a_n * np.cos(2 * np.pi * freq * t) + b_n * np.sin(2 * np.pi * freq * t)
+    return result
 
 # 使用FFT结果进行周期分析
 # 找到幅值最大的频率，同时需要对于整个FFT的拟合效果进行评估
@@ -80,6 +94,9 @@ def FFT_period_analysis(frequencies, magnitude):
     # FFT拟合效果评估
 
     return dominant_period
+
+# 3. 滑动窗口技术进行局部FFT分析
+
 
 # ===========补充的拟合和预测代码===========
 train_fft = np.fft.fft(y_train-np.mean(y_train))
@@ -101,7 +118,7 @@ for i in range(n_components):
     initial_guess.extend([main_amplitudes[i], main_frequencies[i], main_phases[i]])
 
 try:
-    popt, pcov = curve_fit(fft_model, X_train, y_train,p0=initial_guess, maxfev=5000)
+    popt, pcov = curve_fit(fft_model, X_train, y_train,p0=initial_guess, maxfev=50000)
     print("FFT拟合成功")
 
     # 在训练集上的拟合值
