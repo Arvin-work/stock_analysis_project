@@ -62,9 +62,9 @@ X_test = time_indices[train_size:]
 y_train = closing_prices[:train_size]
 y_test = closing_prices[train_size:]
 
-def fft_model(t, *coefficients):
+def fft_model(t, dc_offset,*coefficients):
     n_components = len(coefficients) // 2
-    result = 0
+    result = dc_offset
     
     for i in range(n_components):
         a_n = coefficients[2*i]      # 余弦系数
@@ -74,7 +74,7 @@ def fft_model(t, *coefficients):
         result += a_n * np.cos(2 * np.pi * freq * t) + b_n * np.sin(2 * np.pi * freq * t)
     return result
 
-def improved_fft_model(t, *coefficients):
+def fft_model_unimport(t, *coefficients):
     for i in range(n_components):
         a_n = coefficients[2*i]      # 余弦系数
         b_n = coefficients[2*i + 1]  # 正弦系数
@@ -96,8 +96,43 @@ def FFT_period_analysis(frequencies, magnitude):
     return dominant_period
 
 # 3. 滑动窗口技术进行局部FFT分析
+def sliding_window_fft(data, window_size=30):
+    n = len(data)
+    reconstructed = np.zeros(n)
 
-# 4. 带趋势项的FFT模型
+    for i in range(n - window_size + 1):
+        window_data = data[i:i+window_size]
+        # 对窗口数据进行FFT分析
+        fft_window = np.fft.fft(window_data - np.mean(window_data))
+        # 重构窗口数据
+        reconstructed_window = np.fft.ifft(fft_window).real + np.mean(window_data)
+
+        if i == 0:
+            reconstructed[i:i+window_size//2] += reconstructed_window[:window_size//2]
+        elif i == n - window_size:
+            reconstructed[i+window_size//2:i+window_size] += reconstructed_window[window_size//2:]
+        else:
+            reconstructed[i+window_size//2] += reconstructed_window[window_size//2]
+
+        return reconstructed
+
+# 4. 带趋势项的FFT模型 
+def fft_with_trend_model(t, trend_slope, trend_intercept, *fft_coefficients):
+    trend = trend_slope * t + trend_intercept
+
+    # 分析FFT的周期成分
+    n_components = len(fft_coefficients) // 2
+    periodic_component = 0
+
+    for i in range(n_components):
+        a_n = fft_coefficients[2*i]      # 余弦系数
+        b_n = fft_coefficients[2*i + 1]  # 正弦系数
+        freq = (i + 1) / len(t)          # 基础频率的倍数
+        
+        periodic_component += a_n * np.cos(2 * np.pi * freq * t) + b_n * np.sin(2 * np.pi * freq * t)
+    return trend + periodic_component
+
+
 
 # ===========补充的拟合和预测代码===========
 train_fft = np.fft.fft(y_train-np.mean(y_train))
@@ -105,7 +140,7 @@ train_frequencies = np.fft.fftfreq(len(y_train))
 train_magnitude = np.abs(train_fft)
 
 # 选择主要频率成分
-n_components = 5
+n_components = 80
 positive_indices = np.where(train_frequencies > 0)[0]
 significant_indices = positive_indices[np.argsort(train_magnitude[positive_indices])[-n_components:]]
 
