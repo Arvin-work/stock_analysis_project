@@ -97,6 +97,7 @@ def FFT_period_analysis(frequencies, magnitude):
 
 # 3. 滑动窗口技术进行局部FFT分析
 
+# 4. 带趋势项的FFT模型
 
 # ===========补充的拟合和预测代码===========
 train_fft = np.fft.fft(y_train-np.mean(y_train))
@@ -214,8 +215,9 @@ try:
     plt.xlabel('时间索引')
     plt.ylabel('残差')
     plt.grid(True)
-    
+
     plt.tight_layout()
+    plt.show()
     plt.savefig('presentation/visual_picture/fft_residuals.png', dpi=300, bbox_inches='tight')
 
 except Exception as e:
@@ -233,5 +235,5 @@ except Exception as e:
     plt.ylabel('收盘价')
     plt.legend()
     plt.grid(True)
-    plt.savefig('presentation/visual_picture/fft_direct_reconstruction.png', dpi=300, bbox_inches='tight')
     plt.show()
+    plt.savefig('presentation/visual_picture/fft_direct_reconstruction.png', dpi=300, bbox_inches='tight')
