@@ -4,7 +4,6 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from typing import Optional
-from ..data import *
 
 # 设置matplotlib，设置中文
 plt.rcParams['font.sans-serif'] = ['Heiti TC']
@@ -124,9 +123,9 @@ def Eda_visiualization_hist(data: Optional[pd.DataFrame], stock_code: str):
 
 # --- 示例用法 ---
 # 1. 读取数据 (请将 '2025-10-25_18_20240101_20251022_akshare.csv' 替换为你的实际文件路径)
-#df = pd.read_csv('data/stock_data/hist/600519/2025-10-25_18_20240101_20251022_akshare.csv')
+df = pd.read_csv('data/stock_data/hist/600519/20240501_20250905_akshare.csv')
 # 2. 调用函数进行可视化
-#Eda_visiualization(df, '600519')
+Eda_visiualization_hist(df, '600519')
 
 # 对于相关可视化数据进行存储
 def save_visualization(fig: matplotlib.figure.Figure, filename: str):
