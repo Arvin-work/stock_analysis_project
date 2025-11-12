@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from scipy.optimize import curve_fit
 
 # 设置matplotlib，设置中文
-plt.rcParams['font.sans-serif'] = ['Heiti TC']
+plt.rcParams['font.sans-serif'] = ['Heiti TC', 'SimHei']  # 用于正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False
 
 new_df = pd.read_csv('data/stock_data/hist/600519/20240501_20250905_akshare.csv')
