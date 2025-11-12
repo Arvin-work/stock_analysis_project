@@ -140,11 +140,66 @@ def get_system_info():
         print(f"获取系统信息错误: {e}")
         return {}
 
+def get_file_tree(path='.'):
+    """获取文件树结构"""
+    file_tree = []
+    ignore_dirs = {'.git', '__pycache__', 'node_modules', '.vscode', '.idea'}
+    
+    try:
+        for item in os.listdir(path):
+            if item.startswith('.'):
+                continue
+                
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path) and item not in ignore_dirs:
+                # 递归获取子目录
+                children = get_file_tree(item_path)
+                file_tree.append({
+                    'name': item,
+                    'type': 'directory',
+                    'path': item_path,
+                    'children': children
+                })
+            elif os.path.isfile(item_path) and item.endswith(('.py', '.txt', '.md', '.json', '.csv', '.html', '.css', '.js')):
+                file_tree.append({
+                    'name': item,
+                    'type': 'file',
+                    'path': item_path,
+                    'size': os.path.getsize(item_path)
+                })
+    except Exception as e:
+        print(f"获取文件树错误: {e}")
+    
+    return file_tree
+
+def read_file_content(filepath):
+    """读取文件内容"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return f.read()
+    except UnicodeDecodeError:
+        try:
+            with open(filepath, 'r', encoding='gbk') as f:
+                return f.read()
+        except:
+            return "无法读取文件内容（编码问题）"
+    except Exception as e:
+        return f"读取文件错误: {str(e)}"
+
+def save_file_content(filepath, content):
+    """保存文件内容"""
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return True, "文件保存成功"
+    except Exception as e:
+        return False, f"保存文件错误: {str(e)}"
+
 runner = ProgramRunner()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('ops_index.html')
 
 @app.route('/api/status')
 def get_status():
@@ -155,6 +210,39 @@ def get_system_status():
     """获取系统状态"""
     system_info = get_system_info()
     return jsonify(system_info)
+
+@app.route('/api/files/tree')
+def get_files_tree():
+    """获取文件树"""
+    path = request.args.get('path', '.')
+    file_tree = get_file_tree(path)
+    return jsonify(file_tree)
+
+@app.route('/api/files/content')
+def get_file_content():
+    """获取文件内容"""
+    filepath = request.args.get('path')
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({'error': '文件不存在'}), 404
+    
+    content = read_file_content(filepath)
+    return jsonify({'content': content})
+
+@app.route('/api/files/save', methods=['POST'])
+def save_file():
+    """保存文件"""
+    data = request.get_json()
+    filepath = data.get('path')
+    content = data.get('content')
+    
+    if not filepath:
+        return jsonify({'error': '文件路径不能为空'}), 400
+    
+    success, message = save_file_content(filepath, content)
+    if success:
+        return jsonify({'message': message})
+    else:
+        return jsonify({'error': message}), 500
 
 @app.route('/api/start', methods=['POST'])
 def start_program():
@@ -222,7 +310,7 @@ if __name__ == '__main__':
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static', exist_ok=True)
     
-    print("🌐 股票分析系统控制面板启动中...")
+    print("🌐 运维平台启动中...")
     print("📱 访问地址: http://127.0.0.1:5000")
     print("🛑 按 Ctrl+C 停止服务器")
     
