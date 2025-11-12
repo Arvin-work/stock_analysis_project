@@ -95,7 +95,7 @@ def get_system_info():
         memory = psutil.virtual_memory()
         
         # 磁盘信息
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage('.')
         
         # GPU信息 (如果有)
         gpus = []
@@ -141,40 +141,64 @@ def get_system_info():
         return {}
 
 def get_file_tree(path='.'):
-    """获取文件树结构"""
+    """获取文件树结构 - 修复版本"""
     file_tree = []
-    ignore_dirs = {'.git', '__pycache__', 'node_modules', '.vscode', '.idea'}
+    ignore_dirs = {'.git', '__pycache__', 'node_modules', '.vscode', '.idea', 'venv', 'env'}
+    ignore_files = {'.DS_Store', 'Thumbs.db'}
     
     try:
-        for item in os.listdir(path):
-            if item.startswith('.'):
+        # 获取当前工作目录的绝对路径
+        abs_path = os.path.abspath(path)
+        
+        for item in os.listdir(abs_path):
+            if item in ignore_files:
                 continue
                 
-            item_path = os.path.join(path, item)
+            item_path = os.path.join(abs_path, item)
+            relative_path = os.path.relpath(item_path, start='.')
+            
             if os.path.isdir(item_path) and item not in ignore_dirs:
-                # 递归获取子目录
-                children = get_file_tree(item_path)
-                file_tree.append({
-                    'name': item,
-                    'type': 'directory',
-                    'path': item_path,
-                    'children': children
-                })
-            elif os.path.isfile(item_path) and item.endswith(('.py', '.txt', '.md', '.json', '.csv', '.html', '.css', '.js')):
+                try:
+                    # 递归获取子目录，但限制深度避免性能问题
+                    children = get_file_tree(item_path)
+                    file_tree.append({
+                        'name': item,
+                        'type': 'directory',
+                        'path': relative_path,
+                        'children': children
+                    })
+                except PermissionError:
+                    # 跳过无权限访问的目录
+                    continue
+            elif os.path.isfile(item_path):
+                # 显示所有文件，不限制文件类型
                 file_tree.append({
                     'name': item,
                     'type': 'file',
-                    'path': item_path,
+                    'path': relative_path,
                     'size': os.path.getsize(item_path)
                 })
+                
+        # 按类型和名称排序：目录在前，文件在后
+        file_tree.sort(key=lambda x: (x['type'] != 'directory', x['name'].lower()))
+        
     except Exception as e:
         print(f"获取文件树错误: {e}")
+        # 返回错误信息
+        return [{'name': f'错误: {str(e)}', 'type': 'error', 'path': path}]
     
     return file_tree
 
 def read_file_content(filepath):
     """读取文件内容"""
     try:
+        # 安全检查：确保文件路径在当前目录下
+        abs_path = os.path.abspath(filepath)
+        current_dir = os.path.abspath('.')
+        
+        if not abs_path.startswith(current_dir):
+            return "错误: 文件路径不安全"
+            
         with open(filepath, 'r', encoding='utf-8') as f:
             return f.read()
     except UnicodeDecodeError:
@@ -189,6 +213,16 @@ def read_file_content(filepath):
 def save_file_content(filepath, content):
     """保存文件内容"""
     try:
+        # 安全检查
+        abs_path = os.path.abspath(filepath)
+        current_dir = os.path.abspath('.')
+        
+        if not abs_path.startswith(current_dir):
+            return False, "错误: 文件路径不安全"
+            
+        # 确保目录存在
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
         return True, "文件保存成功"
@@ -222,7 +256,17 @@ def get_files_tree():
 def get_file_content():
     """获取文件内容"""
     filepath = request.args.get('path')
-    if not filepath or not os.path.exists(filepath):
+    if not filepath:
+        return jsonify({'error': '文件路径不能为空'}), 400
+    
+    # 安全检查
+    abs_path = os.path.abspath(filepath)
+    current_dir = os.path.abspath('.')
+    
+    if not abs_path.startswith(current_dir):
+        return jsonify({'error': '文件路径不安全'}), 403
+        
+    if not os.path.exists(filepath):
         return jsonify({'error': '文件不存在'}), 404
     
     content = read_file_content(filepath)
@@ -232,6 +276,9 @@ def get_file_content():
 def save_file():
     """保存文件"""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': '请求数据为空'}), 400
+        
     filepath = data.get('path')
     content = data.get('content')
     
@@ -292,25 +339,49 @@ def get_results():
 def get_result_file(filename):
     """获取具体的结果文件"""
     safe_path = os.path.normpath(filename)
+    abs_path = os.path.abspath(safe_path)
+    current_dir = os.path.abspath('.')
+    
+    # 安全检查
+    if not abs_path.startswith(current_dir):
+        return jsonify({'status': 'error', 'message': '文件路径不安全'}), 403
+        
     if os.path.exists(safe_path) and safe_path.startswith('presentation/'):
         return send_file(safe_path)
     else:
         return jsonify({'status': 'error', 'message': '文件不存在'}), 404
 
+# 添加调试信息
+@app.route('/api/debug/path')
+def debug_path():
+    """调试路径信息"""
+    info = {
+        'current_working_dir': os.getcwd(),
+        'script_dir': os.path.dirname(os.path.abspath(__file__)),
+        'files_in_cwd': os.listdir('.')
+    }
+    return jsonify(info)
+
 if __name__ == '__main__':
     # 安装依赖检查
     try:
         import psutil
+    except ImportError:
+        print("请安装依赖: pip install psutil")
+        sys.exit(1)
+    
+    try:
         import GPUtil
     except ImportError:
-        print("请安装依赖: pip install psutil GPUtil")
-        sys.exit(1)
+        print("GPUtil 未安装，GPU监控将不可用")
     
     # 创建必要的目录
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static', exist_ok=True)
     
     print("🌐 运维平台启动中...")
+    print(f"📁 当前工作目录: {os.getcwd()}")
+    print(f"📁 脚本所在目录: {os.path.dirname(os.path.abspath(__file__))}")
     print("📱 访问地址: http://127.0.0.1:5000")
     print("🛑 按 Ctrl+C 停止服务器")
     

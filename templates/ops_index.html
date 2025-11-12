@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票分析运维平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        :root {
+            --sidebar-width: 280px;
+            --header-height: 60px;
+            --primary-color: #007acc;
+            --sidebar-bg: #333333;
+            --sidebar-hover: #2a2d2e;
+            --header-bg: #2d2d30;
+            --editor-bg: #1e1e1e;
+            --text-primary: #cccccc;
+            --text-secondary: #969696;
+            --border-color: #3e3e42;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--editor-bg);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 侧边栏样式 */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 20px;
+        }
+
+        .nav-title {
+            padding: 10px 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .nav-item:hover {
+            background: var(--sidebar-hover);
+        }
+
+        .nav-item.active {
+            background: var(--primary-color);
+        }
+
+        .nav-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        /* 文件树样式 */
+        .file-tree {
+            padding: 10px;
+            font-size: 13px;
+        }
+
+        .file-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 3px;
+            user-select: none;
+        }
+
+        .file-item:hover {
+            background: var(--sidebar-hover);
+        }
+
+        .file-item i {
+            color: var(--text-secondary);
+            width: 16px;
+            font-size: 12px;
+        }
+
+        .file-children {
+            margin-left: 16px;
+            display: none;
+        }
+
+        .file-children.expanded {
+            display: block;
+        }
+
+        .file-item.directory > i.fa-folder {
+            color: #ffcc00;
+        }
+
+        .file-item.directory > i.fa-folder-open {
+            color: #ffcc00;
+        }
+
+        .file-item.file > i {
+            color: #569cd6;
+        }
+
+        .file-item.file.py > i {
+            color: #3572A5;
+        }
+
+        .file-item.file.html > i {
+            color: #e34c26;
+        }
+
+        .file-item.file.css > i {
+            color: #563d7c;
+        }
+
+        .file-item.file.js > i {
+            color: #f1e05a;
+        }
+
+        .file-item.file.json > i {
+            color: #daa520;
+        }
+
+        .file-item.file.csv > i {
+            color: #237346;
+        }
+
+        .file-item.file.png > i, 
+        .file-item.file.jpg > i {
+            color: #c586c0;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            height: var(--header-height);
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-stop {
+            background: #da3633;
+        }
+
+        .content-area {
+            flex: 1;
+            display: none;
+            overflow: hidden;
+        }
+
+        .content-area.active {
+            display: flex;
+        }
+
+        /* 编辑器样式 */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-tabs {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+        }
+
+        .editor-tab {
+            padding: 8px 16px;
+            background: var(--header-bg);
+            border-right: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-tab.active {
+            background: var(--editor-bg);
+        }
+
+        .editor-tab-close {
+            margin-left: 8px;
+            opacity: 0.7;
+        }
+
+        .editor-tab-close:hover {
+            opacity: 1;
+        }
+
+        .editor-content {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .CodeMirror {
+            height: 100%;
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        /* 终端样式 */
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+        }
+
+        .terminal-output {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            color: #cccccc;
+        }
+
+        .terminal-line {
+            margin-bottom: 2px;
+        }
+
+        /* 系统监控样式 */
+        .system-container {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .system-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .system-card {
+            background: #2d2d30;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .system-value {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .system-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #3e3e42;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* 结果查看样式 */
+        .results-container {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: #2d2d30;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .result-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .result-content {
+            padding: 16px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .result-type {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-running {
+            background: #3fb950;
+            animation: pulse 2s infinite;
+        }
+
+        .status-stopped {
+            background: #da3633;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #3e3e42;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #ff6b6b;
+            padding: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">股票分析平台</div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-title">资源</div>
+                    <div class="nav-item active" data-tab="files">
+                        <i class="fas fa-folder"></i>
+                        <span>文件资源</span>
+                    </div>
+                    <div class="nav-item" data-tab="system">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>系统监控</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-title">开发</div>
+                    <div class="nav-item" data-tab="editor">
+                        <i class="fas fa-code"></i>
+                        <span>代码编辑器</span>
+                    </div>
+                    <div class="nav-item" data-tab="terminal">
+                        <i class="fas fa-terminal"></i>
+                        <span>运行终端</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-title">分析</div>
+                    <div class="nav-item" data-tab="results">
+                        <i class="fas fa-chart-line"></i>
+                        <span>分析结果</span>
+                    </div>
+                </div>
+
+                <!-- 文件树 -->
+                <div class="nav-section">
+                    <div class="nav-title">文件树</div>
+                    <div class="file-tree" id="fileTree">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div>加载文件树...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title" id="headerTitle">文件资源管理器</div>
+                <div class="header-controls">
+                    <div class="status-indicator">
+                        <div class="status-dot" id="statusIndicator"></div>
+                        <span id="statusText">已停止</span>
+                    </div>
+                    <button class="btn" onclick="startProgram()" id="startBtn">
+                        <i class="fas fa-play"></i>
+                        启动
+                    </button>
+                    <button class="btn btn-stop" onclick="stopProgram()" id="stopBtn" disabled>
+                        <i class="fas fa-stop"></i>
+                        停止
+                    </button>
+                    <button class="btn" onclick="loadFileTree()" title="刷新文件树">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 文件资源管理器 -->
+            <div class="content-area active" id="files">
+                <div class="editor-container">
+                    <div class="editor-tabs">
+                        <div class="editor-tab active">文件资源管理器</div>
+                    </div>
+                    <div class="editor-content" style="padding: 20px;">
+                        <h3>项目文件结构</h3>
+                        <p>使用左侧文件树浏览和编辑项目文件</p>
+                        <div style="margin-top: 20px; font-size: 12px; color: #666;">
+                            <p>当前目录: <span id="currentDir"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统监控 -->
+            <div class="content-area" id="system">
+                <div class="system-container">
+                    <h3>系统资源监控</h3>
+                    <div class="system-grid" id="systemStatus">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div>加载系统状态...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 代码编辑器 -->
+            <div class="content-area" id="editor">
+                <div class="editor-container">
+                    <div class="editor-tabs" id="editorTabs">
+                        <div class="editor-tab active">
+                            <span>选择文件进行编辑</span>
+                        </div>
+                    </div>
+                    <div class="editor-content">
+                        <textarea id="codeEditor" style="display: none;"></textarea>
+                        <div id="editorPlaceholder" style="padding: 40px; text-align: center; color: #666;">
+                            <i class="fas fa-file-code" style="font-size: 48px; margin-bottom: 16px;"></i>
+                            <p>请在左侧文件树中选择一个文件进行编辑</p>
+                            <p style="font-size: 12px; margin-top: 10px;">支持的文件类型: .py, .txt, .md, .json, .html, .css, .js, .csv</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 运行终端 -->
+            <div class="content-area" id="terminal">
+                <div class="terminal-container">
+                    <div class="editor-tabs">
+                        <div class="editor-tab active">运行输出</div>
+                    </div>
+                    <div class="terminal-output" id="terminalOutput">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div>等待程序输出...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分析结果 -->
+            <div class="content-area" id="results">
+                <div class="results-container">
+                    <h3>分析结果</h3>
+                    <div class="results-grid" id="resultsContainer">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div>加载分析结果...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CodeMirror 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+
+    <script>
+        let editor = null;
+        let currentFile = null;
+        let fileTreeData = null;
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 显示当前目录
+            fetch('/api/debug/path')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentDir').textContent = data.current_working_dir;
+                });
+            
+            // 初始化标签页切换
+            initTabNavigation();
+            
+            // 加载文件树
+            loadFileTree();
+            
+            // 初始化系统状态
+            updateSystemStatus();
+            updateProgramStatus();
+            loadResults();
+            
+            // 设置定时更新
+            setInterval(updateSystemStatus, 5000);
+            setInterval(updateProgramStatus, 2000);
+            setInterval(loadResults, 30000);
+        });
+
+        // 标签页导航
+        function initTabNavigation() {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    // 移除所有active类
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    document.querySelectorAll('.content-area').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // 添加active类
+                    this.classList.add('active');
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    // 更新标题
+                    document.getElementById('headerTitle').textContent = this.querySelector('span').textContent;
+                });
+            });
+        }
+
+        // 加载文件树
+        function loadFileTree() {
+            const fileTreeContainer = document.getElementById('fileTree');
+            fileTreeContainer.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载文件树...</div></div>';
+            
+            fetch('/api/files/tree')
+                .then(response => response.json())
+                .then(data => {
+                    fileTreeData = data;
+                    renderFileTree(data, fileTreeContainer);
+                })
+                .catch(error => {
+                    console.error('加载文件树失败:', error);
+                    fileTreeContainer.innerHTML = '<div class="error">加载文件树失败: ' + error.message + '</div>';
+                });
+        }
+
+        // 渲染文件树
+        // 渲染文件树 - 修复版本
+function renderFileTree(tree, container) {
+    if (!tree || tree.length === 0) {
+        const emptyMsg = '<div style="color: #666; padding: 10px;">空目录</div>';
+        if (container) {
+            container.innerHTML = emptyMsg;
+        }
+        return emptyMsg;
+    }
+
+    let html = '';
+    tree.forEach(item => {
+        if (item.type === 'error') {
+            html += `<div class="error">${item.name}</div>`;
+            return;
+        }
+        
+        const fileExt = item.name.split('.').pop().toLowerCase();
+        const fileClass = `file-item ${item.type} ${item.type === 'file' ? fileExt : ''}`;
+        
+        if (item.type === 'directory') {
+            // 处理子目录
+            let childrenHtml = '';
+            if (item.children && item.children.length > 0) {
+                childrenHtml = renderFileTree(item.children); // 不传递容器参数
+            } else {
+                childrenHtml = '<div style="color: #666; padding-left: 20px;">空目录</div>';
+            }
+            
+            html += `
+                <div class="${fileClass}" onclick="toggleDirectory(this)">
+                    <i class="fas fa-folder"></i>
+                    <span>${item.name}</span>
+                </div>
+                <div class="file-children">
+                    ${childrenHtml}
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="${fileClass}" onclick="openFile('${item.path}')">
+                    <i class="fas ${getFileIcon(item.name)}"></i>
+                    <span>${item.name}</span>
+                </div>
+            `;
+        }
+    });
+    
+    // 如果传入了容器，则设置其innerHTML
+    if (container) {
+        container.innerHTML = html;
+    }
+    
+    return html;
+}
+
+        // 获取文件图标
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const iconMap = {
+                'py': 'fa-file-code',
+                'js': 'fa-file-code',
+                'html': 'fa-file-code',
+                'css': 'fa-file-code',
+                'json': 'fa-file-code',
+                'md': 'fa-file-alt',
+                'txt': 'fa-file-alt',
+                'csv': 'fa-file-csv',
+                'png': 'fa-file-image',
+                'jpg': 'fa-file-image',
+                'jpeg': 'fa-file-image',
+                'gif': 'fa-file-image',
+                'pdf': 'fa-file-pdf'
+            };
+            return iconMap[ext] || 'fa-file';
+        }
+
+        // 切换目录展开/收起
+        function toggleDirectory(element) {
+            const children = element.nextElementSibling;
+            const icon = element.querySelector('i');
+            
+            if (children.classList.contains('expanded')) {
+                children.classList.remove('expanded');
+                icon.className = 'fas fa-folder';
+            } else {
+                children.classList.add('expanded');
+                icon.className = 'fas fa-folder-open';
+            }
+        }
+
+        // 打开文件
+        function openFile(filepath) {
+            fetch(`/api/files/content?path=${encodeURIComponent(filepath)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    
+                    currentFile = filepath;
+                    
+                    // 切换到编辑器标签页
+                    document.querySelector('.nav-item[data-tab="editor"]').click();
+                    
+                    // 初始化编辑器
+                    initEditor(data.content, filepath);
+                })
+                .catch(error => {
+                    console.error('打开文件失败:', error);
+                    alert('打开文件失败: ' + error.message);
+                });
+        }
+
+        // 初始化代码编辑器
+        function initEditor(content, filepath) {
+            const editorPlaceholder = document.getElementById('editorPlaceholder');
+            const codeEditor = document.getElementById('codeEditor');
+            
+            editorPlaceholder.style.display = 'none';
+            codeEditor.style.display = 'block';
+            
+            if (editor) {
+                editor.setValue(content);
+                editor.setOption('mode', getFileMode(filepath));
+            } else {
+                editor = CodeMirror.fromTextArea(codeEditor, {
+                    mode: getFileMode(filepath),
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    indentUnit: 4,
+                    smartIndent: true,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    lineWrapping: true,
+                    value: content
+                });
+            }
+            
+            // 更新标签页
+            const filename = filepath.split('/').pop();
+            document.getElementById('editorTabs').innerHTML = `
+                <div class="editor-tab active">
+                    <span>${filename}</span>
+                    <span class="editor-tab-close" onclick="closeEditor()">
+                        <i class="fas fa-times"></i>
+                    </span>
+                </div>
+            `;
+        }
+
+        // 获取文件类型
+        function getFileMode(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const modeMap = {
+                'py': 'python',
+                'js': 'javascript',
+                'css': 'css',
+                'html': 'html',
+                'md': 'markdown',
+                'json': 'javascript'
+            };
+            return modeMap[ext] || 'text/plain';
+        }
+
+        // 关闭编辑器
+        function closeEditor() {
+            const editorPlaceholder = document.getElementById('editorPlaceholder');
+            const codeEditor = document.getElementById('codeEditor');
+            
+            editorPlaceholder.style.display = 'block';
+            codeEditor.style.display = 'none';
+            document.getElementById('editorTabs').innerHTML = `
+                <div class="editor-tab active">
+                    <span>选择文件进行编辑</span>
+                </div>
+            `;
+            
+            currentFile = null;
+        }
+
+        // 保存文件
+        function saveFile() {
+            if (!currentFile || !editor) {
+                alert('没有打开的文件');
+                return;
+            }
+            
+            const content = editor.getValue();
+            
+            fetch('/api/files/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    path: currentFile,
+                    content: content
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('保存失败: ' + data.error);
+                } else {
+                    alert('文件保存成功');
+                // 刷新文件树以显示可能的更改
+                    loadFileTree();
+                }
+            })
+            .catch(error => {
+                console.error('保存文件失败:', error);
+                alert('保存文件失败: ' + error.message);
+            });
+        }
+
+        // 系统状态监控
+        function updateSystemStatus() {
+            fetch('/api/system')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('systemStatus');
+                    
+                    if (data.cpu) {
+                        let html = `
+                            <div class="system-card">
+                                <div class="system-value">${data.cpu.percent}%</div>
+                                <div class="system-label">CPU 使用率</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${data.cpu.percent}%"></div>
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-top: 4px;">${data.cpu.cores} 核心</div>
+                            </div>
+                            
+                            <div class="system-card">
+                                <div class="system-value">${data.memory.percent}%</div>
+                                <div class="system-label">内存使用</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${data.memory.percent}%"></div>
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-top: 4px;">${data.memory.used_gb} / ${data.memory.total_gb} GB</div>
+                            </div>
+                            
+                            <div class="system-card">
+                                <div class="system-value">${data.disk.percent}%</div>
+                                <div class="system-label">磁盘使用</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${data.disk.percent}%"></div>
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-top: 4px;">${data.disk.used_gb} / ${data.disk.total_gb} GB</div>
+                            </div>
+                        `;
+                        
+                        if (data.gpus && data.gpus.length > 0) {
+                            data.gpus.forEach((gpu, index) => {
+                                html += `
+                                    <div class="system-card">
+                                        <div class="system-value">${Math.round(gpu.load)}%</div>
+                                        <div class="system-label">GPU ${index + 1}</div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${gpu.load}%"></div>
+                                        </div>
+                                        <div style="font-size: 12px; color: #666; margin-top: 4px;">${gpu.memory_used} / ${gpu.memory_total} MB</div>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        container.innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    console.error('获取系统状态失败:', error);
+                });
+        }
+
+        // 程序状态监控
+        function updateProgramStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusIndicator = document.getElementById('statusIndicator');
+                    const statusText = document.getElementById('statusText');
+                    const startBtn = document.getElementById('startBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    
+                    if (data.is_running) {
+                        statusIndicator.className = 'status-dot status-running';
+                        statusText.textContent = '运行中';
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                    } else {
+                        statusIndicator.className = 'status-dot status-stopped';
+                        statusText.textContent = '已停止';
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                    }
+                    
+                    // 更新终端输出
+                    if (data.output) {
+                        document.getElementById('terminalOutput').innerHTML = 
+                            `<div class="terminal-line">${data.output.replace(/\n/g, '</div><div class="terminal-line">')}</div>`;
+                        const terminal = document.getElementById('terminalOutput');
+                        terminal.scrollTop = terminal.scrollHeight;
+                    }
+                })
+                .catch(error => {
+                    console.error('获取状态失败:', error);
+                });
+        }
+
+        // 启动程序
+        function startProgram() {
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ args: [] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                updateProgramStatus();
+            })
+            .catch(error => {
+                console.error('启动失败:', error);
+            });
+        }
+
+        // 停止程序
+        function stopProgram() {
+            fetch('/api/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                updateProgramStatus();
+            })
+            .catch(error => {
+                console.error('停止失败:', error);
+            });
+        }
+
+        // 加载结果文件
+        function loadResults() {
+            fetch('/api/results')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('resultsContainer');
+                    
+                    if (data.results && data.results.length > 0) {
+                        let html = '';
+                        data.results.forEach(result => {
+                            if (result.type === 'image') {
+                                html += `
+                                    <div class="result-card" onclick="viewResult('${result.path}')">
+                                        <img src="/api/result/${result.path}" alt="${result.name}" class="result-image">
+                                        <div class="result-content">
+                                            <div class="result-title">${result.name}</div>
+                                            <div class="result-type">图表分析</div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                html += `
+                                    <div class="result-card" onclick="downloadResult('${result.path}')">
+                                        <div style="padding: 60px 20px; text-align: center; background: #2d2d30;">
+                                            <i class="fas fa-file-csv" style="font-size: 48px; color: #666;"></i>
+                                        </div>
+                                        <div class="result-content">
+                                            <div class="result-title">${result.name}</div>
+                                            <div class="result-type">数据文件</div>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = '<div class="loading"><div>暂无分析结果</div></div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('加载结果失败:', error);
+                });
+        }
+
+        // 查看结果（图片）
+        function viewResult(path) {
+            window.open(`/api/result/${path}`, '_blank');
+        }
+
+        // 下载结果文件
+        function downloadResult(path) {
+            window.open(`/api/result/${path}`, '_blank');
+        }
+
+        // 添加快捷键支持
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveFile();
+            }
+        });
+    </script>
+</body>
+</html>
